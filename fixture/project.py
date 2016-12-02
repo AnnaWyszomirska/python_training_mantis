@@ -1,3 +1,5 @@
+from random import randrange
+
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.common.by import By
@@ -11,21 +13,21 @@ class ProjectHelper:
     def open_project_page(self):
         wd = self.app.wd
         wd.find_element_by_xpath("//*[@class='manage-menu-link']").click()
-        wd.find_element_by_xpath("//span[text()='Zarządzanie projektami']").click()
+        wd.find_element_by_xpath("//*[text()='Zarządzanie projektami']").click()
 
     def fill_project_form(self, project):
         wd = self.app.wd
-        wd.find_element_by_css_selector('#project_name').send_keys(project)
+        wd.find_element_by_id('project-name').send_keys(project.name)
         # wd.find_element_by_css_selector('#project_status').send_keys(project)
         # wd.find_element_by_css_selector('#project-view-state').send_keys(project)
-        wd.find_element_by_css_selector('#project-description').send_keys(project)
+        wd.find_element_by_id('project-description').send_keys(project.description)
 
-    #
-    # def select_project_by_index(self, index):
-    #     wd = self.app.wd
-    #     wd.find_element_by_xpath
-    #     // h2[text()='Projekty']/following - sibling::table//tr/td
-    #     // h2[text() = 'Projekty'] / following - sibling::table // tr / td[1]
+    def select_project_by_index(self, index):
+        wd = self.app.wd
+        self.open_project_page()
+        project_row = wd.find_element_by_xpath("//h2[text()='Projekty']/following-sibling::table//tbody//tr[%s]" % index)
+        project_row.find_element_by_xpath("td[1]//a").click()
+
 
     def create_project(self, project):
         wd = self.app.wd
@@ -33,16 +35,34 @@ class ProjectHelper:
         wd.find_element_by_xpath("//fieldset//input[@value='Stwórz nowy projekt']").click()
         self.fill_project_form(project)
         wd.find_element_by_xpath("//input[@type='submit'][@value = 'Dodaj projekt']").click()
-        element = WebDriverWait(wd, 5).until(expected_conditions.visibility_of_element_located(By.XPATH, "//h2[text() = 'Projekty']"))
+        self.open_project_page()
+        self.project_cache=None
 
     def delete_project_by_index(self, index):
         wd = self.app.wd
-        self.open_project_page()
-        self.select_project_by_index[index]
-        #submint deletion
-        self.return_to_project_page()
+        self.select_project_by_index(index)
+        wd.find_element_by_xpath("//input[@class='button'][@value ='Usuń projekt']").click()
+        #confirm removing
+        wd.find_element_by_xpath("//input[@class='button'][@value ='Usuń projekt']").click()
+        self.project_cache = None
 
     def count(self):
         wd = self.app.wd
-        self.open_groups_page()
-        return len(wd.find_elements_by_name("selected[]"))
+        self.open_project_page()
+        return len(wd.find_elements_by_xpath("//h2[text()='Projekty']/following-sibling::table//tbody//tr"))
+
+    project_cache=None
+    def get_project_list(self):
+        if self.project_cache is None:
+            wd = self.app.wd
+            self.open_project_page()
+            self.project_cache = []
+            for element in wd.find_elements_by_xpath("//h2[text()='Projekty']/following-sibling::table//tbody//tr"):
+                cell = element.find_element_by_xpath("td//a")
+                name = cell.text
+                cells = element.find_elements_by_xpath("td")
+                status = cells[2].text
+                viewstate = cells[3].text
+                description = cells[4].text
+                self.project_cache.append(Project(name=name, status=status, viewstate=viewstate,description=description))
+        return list(self.project_cache)
